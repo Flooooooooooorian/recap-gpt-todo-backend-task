@@ -1,5 +1,6 @@
 package de.neuefische.todobackend.todo;
 
+import de.neuefische.todobackend.gpt.ChatGptApiService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -10,10 +11,12 @@ public class TodoService {
 
     private final TodoRepository todoRepository;
     private final IdService idService;
+    private final ChatGptApiService chatGptApiService;
 
-    public TodoService(TodoRepository todoRepository, IdService idService) {
+    public TodoService(TodoRepository todoRepository, IdService idService, ChatGptApiService chatGptApiService) {
         this.todoRepository = todoRepository;
         this.idService = idService;
+        this.chatGptApiService = chatGptApiService;
     }
 
     public List<Todo> findAllTodos() {
@@ -23,13 +26,13 @@ public class TodoService {
     public Todo addTodo(NewTodo newTodo) {
         String id = idService.randomId();
 
-        Todo todoToSave = new Todo(id, newTodo.description(), newTodo.status());
+        Todo todoToSave = new Todo(id, chatGptApiService.spellCheck(newTodo.description()), newTodo.status());
 
         return todoRepository.save(todoToSave);
     }
 
     public Todo updateTodo(UpdateTodo todo, String id) {
-        Todo todoToUpdate = new Todo(id, todo.description(), todo.status());
+        Todo todoToUpdate = new Todo(id, chatGptApiService.spellCheck(todo.description()), todo.status());
 
         return todoRepository.save(todoToUpdate);
     }

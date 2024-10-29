@@ -1,5 +1,6 @@
 package de.neuefische.todobackend.todo;
 
+import de.neuefische.todobackend.gpt.ChatGptApiService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -13,7 +14,8 @@ class TodoServiceTest {
 
     TodoRepository todoRepository = mock(TodoRepository.class);
     IdService idService = mock(IdService.class);
-    TodoService todoService = new TodoService(todoRepository, idService);
+    ChatGptApiService chatGptApiService = mock(ChatGptApiService.class);
+    TodoService todoService = new TodoService(todoRepository, idService, chatGptApiService);
 
     @Test
     void findAllTodos() {
@@ -38,10 +40,11 @@ class TodoServiceTest {
     void addTodo() {
         //GIVEN
         NewTodo newTodo = new NewTodo("Test-Description", TodoStatus.OPEN);
-        Todo todoToSave = new Todo("Test-Id", "Test-Description", TodoStatus.OPEN);
+        Todo todoToSave = new Todo("Test-Id", "Corrected-Description", TodoStatus.OPEN);
 
         when(idService.randomId()).thenReturn("Test-Id");
         when(todoRepository.save(todoToSave)).thenReturn(todoToSave);
+        when(chatGptApiService.spellCheck("Test-Description")).thenReturn("Corrected-Description");
 
         //WHEN
 
@@ -50,6 +53,7 @@ class TodoServiceTest {
         //THEN
         verify(idService).randomId();
         verify(todoRepository).save(todoToSave);
+        verify(chatGptApiService).spellCheck("Test-Description");
         assertEquals(todoToSave, actual);
     }
 
@@ -59,17 +63,19 @@ class TodoServiceTest {
         String id = "123";
         UpdateTodo todoToUpdate = new UpdateTodo("test-description", TodoStatus.IN_PROGRESS);
 
-        Todo updatedTodo = new Todo("123", "test-description", TodoStatus.IN_PROGRESS);
+        Todo updatedTodo = new Todo("123", "Corrected-description", TodoStatus.IN_PROGRESS);
 
         when(todoRepository.save(updatedTodo)).thenReturn(updatedTodo);
+        when(chatGptApiService.spellCheck("test-description")).thenReturn("Corrected-description");
+
 
         //WHEN
 
         Todo actual = todoService.updateTodo(todoToUpdate, id);
 
         //THEN
+        verify(chatGptApiService).spellCheck("test-description");
         verify(todoRepository).save(updatedTodo);
-
         assertEquals(updatedTodo, actual);
     }
 

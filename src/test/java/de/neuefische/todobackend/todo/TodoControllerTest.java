@@ -1,21 +1,29 @@
 package de.neuefische.todobackend.todo;
 
-import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.client.AutoConfigureMockRestServiceServer;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.test.web.client.match.MockRestRequestMatchers;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@AutoConfigureMockRestServiceServer
 class TodoControllerTest {
 
     @Autowired
@@ -23,6 +31,9 @@ class TodoControllerTest {
 
     @Autowired
     TodoRepository todoRepository;
+
+    @Autowired
+    MockRestServiceServer mockRestServiceServer;
 
     @Test
     void getAllTodos() throws Exception {
@@ -43,6 +54,55 @@ class TodoControllerTest {
     @DirtiesContext
     void postTodo() throws Exception {
         //GIVEN
+        mockRestServiceServer.expect(requestTo("https://api.openai.com/v1/chat/completions"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(MockRestRequestMatchers.header(HttpHeaders.AUTHORIZATION, "Bearer test-key"))
+                .andExpect(MockRestRequestMatchers.content().json("""
+                        {
+                            "model": "gpt-4o-mini",
+                            "messages": [
+                                {
+                                    "content": "Prüfe die folgende Nachricht auf Rechtschreibfehler. Gibt mir ein json Objekt mit der folgenden Struktur zurück: {original: string, corrected: string}. `test-description`",
+                                    "role": "user"
+                                }
+                            ],
+                            "response_format": {
+                                "type": "json_object"
+                            }
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                            "id": "chatcmpl-test-id",
+                            "object": "chat.completion",
+                            "created": 1730105949,
+                            "model": "gpt-4o-mini-2024-07-18",
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "message": {
+                                        "role": "assistant",
+                                        "content": "{\\"original\\": \\"test-description\\", \\"corrected\\": \\"test-Description\\"}",
+                                        "refusal": null
+                                    },
+                                    "logprobs": null,
+                                    "finish_reason": "stop"
+                                }
+                            ],
+                            "usage": {
+                                "prompt_tokens": 24,
+                                "completion_tokens": 7,
+                                "total_tokens": 31,
+                                "prompt_tokens_details": {
+                                    "cached_tokens": 0
+                                },
+                                "completion_tokens_details": {
+                                    "reasoning_tokens": 0
+                                }
+                            },
+                            "system_fingerprint": "fingerprint"
+                        }
+                        """, MediaType.APPLICATION_JSON));
 
         //WHEN
         mockMvc.perform(post("/api/todo")
@@ -58,7 +118,7 @@ class TodoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json("""
                             {
-                                "description": "test-description",
+                                "description": "test-Description",
                                 "status": "OPEN"
                             }
                         """))
@@ -69,6 +129,56 @@ class TodoControllerTest {
     @DirtiesContext
     void putTodo() throws Exception {
         //GIVEN
+        mockRestServiceServer.expect(requestTo("https://api.openai.com/v1/chat/completions"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(MockRestRequestMatchers.header(HttpHeaders.AUTHORIZATION, "Bearer test-key"))
+                .andExpect(MockRestRequestMatchers.content().json("""
+                        {
+                            "model": "gpt-4o-mini",
+                            "messages": [
+                                {
+                                    "content": "Prüfe die folgende Nachricht auf Rechtschreibfehler. Gibt mir ein json Objekt mit der folgenden Struktur zurück: {original: string, corrected: string}. `test-description-2`",
+                                    "role": "user"
+                                }
+                            ],
+                            "response_format": {
+                                "type": "json_object"
+                            }
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                            "id": "chatcmpl-test-id",
+                            "object": "chat.completion",
+                            "created": 1730105949,
+                            "model": "gpt-4o-mini-2024-07-18",
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "message": {
+                                        "role": "assistant",
+                                        "content": "{\\"original\\": \\"test-description-2\\", \\"corrected\\": \\"test-Description-3\\"}",
+                                        "refusal": null
+                                    },
+                                    "logprobs": null,
+                                    "finish_reason": "stop"
+                                }
+                            ],
+                            "usage": {
+                                "prompt_tokens": 24,
+                                "completion_tokens": 7,
+                                "total_tokens": 31,
+                                "prompt_tokens_details": {
+                                    "cached_tokens": 0
+                                },
+                                "completion_tokens_details": {
+                                    "reasoning_tokens": 0
+                                }
+                            },
+                            "system_fingerprint": "fingerprint"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
         Todo existingTodo = new Todo("1", "test-description", TodoStatus.OPEN);
 
         todoRepository.save(existingTodo);
@@ -87,7 +197,7 @@ class TodoControllerTest {
                 .andExpect(content().json("""
                             {
                                 "id": "1",
-                                "description": "test-description-2",
+                                "description": "test-Description-3",
                                 "status": "IN_PROGRESS"
                             }
                         """));
@@ -119,8 +229,13 @@ class TodoControllerTest {
     void getByIdTest_whenInvalidId_thenStatus404() throws Exception {
         //GIVEN
         //WHEN
-
-        assertThrows(ServletException.class, () -> mockMvc.perform(get("/api/todo/1")));
+        mockMvc.perform(get("/api/todo/1"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().json("""
+                        {
+                          "message": "Todo with id: 1 not found!"
+                        }
+                        """));
 
     }
 
